@@ -29,6 +29,7 @@ SCRIPTS_DIR = "scripts"
 
 
 def connect_snowflake():
+    """Établit une connexion à Snowflake."""
     return snowflake.connector.connect(**SNOWFLAKE_CONFIG)
 
 
