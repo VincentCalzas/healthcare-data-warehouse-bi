@@ -5,6 +5,11 @@ import re
 import dotenv
 
 logger = logging.getLogger(__name__)
+logger.setLevel('INFO')
+logging.basicConfig(    
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+)
 
 # Load environment variables from .env file
 dotenv.load_dotenv()
