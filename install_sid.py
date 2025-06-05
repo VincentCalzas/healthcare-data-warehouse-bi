@@ -84,26 +84,31 @@ def main():
         conn = connect_snowflake()
         cursor = conn.cursor()
         logger.info("Connexion réussie à Snowflake.")
+        files = [
+            "create_database.sql",
+            "create_SOC.sql",
+            "create_STG.sql",
+            "create_TCH.sql",
+            "create_WRK.sql",
+        ]
+        for file in files:
+            path = os.path.join(SCRIPTS_DIR, file)
+            logger.info(f"Traitement du script : {file}")
+            with open(path, "r") as f:
+                first_line = f.readline().strip()
+                match = re.search(
+                    r"CREATE\s+DATABASE\s+([a-zA-Z0-9_]+)", first_line.upper()
+                )
+                if match:
+                    db_name = match.group(1)
+                    if not database_exists(cursor, db_name):
+                        logger.info(f"Création de la base {db_name}")
+                        execute_query(cursor, f"CREATE DATABASE {db_name}")
+                    else:
+                        logger.info(f"Base {db_name} déjà existante, non recréée.")
 
-        for file in os.listdir(SCRIPTS_DIR):
-            if file.endswith(".sql"):
-                path = os.path.join(SCRIPTS_DIR, file)
-                logger.info(f"Traitement du script : {file}")
-                with open(path, "r") as f:
-                    first_line = f.readline().strip()
-                    match = re.search(
-                        r"CREATE\s+DATABASE\s+([a-zA-Z0-9_]+)", first_line.upper()
-                    )
-                    if match:
-                        db_name = match.group(1)
-                        if not database_exists(cursor, db_name):
-                            logger.info(f"Création de la base {db_name}")
-                            execute_query(cursor, f"CREATE DATABASE {db_name}")
-                        else:
-                            logger.info(f"Base {db_name} déjà existante, non recréée.")
-
-                # Exécution du script complet après traitement de la base
-                process_sql_script(cursor, path)
+            # Exécution du script complet après traitement de la base
+            process_sql_script(cursor, path)
 
         logger.info("Installation terminée sans erreur.")
     except Exception as e:
