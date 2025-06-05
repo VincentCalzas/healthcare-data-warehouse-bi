@@ -4,11 +4,16 @@ import logging
 import re
 import dotenv
 import csv
+import datetime
 
 # Initialisation du logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler(f"logs/launch_load_sid_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"), logging.StreamHandler()],
+)
 
 # Chargement des variables d'environnement
 dotenv.load_dotenv()
@@ -79,8 +84,8 @@ def normalize_timestamp(ts_str):
 
             return ts_str
 
-    except Exception:
-
+    except Exception as e:
+        logger.error(f"Erreur de normalisation du timestamp '{ts_str}': {e}")
         return ts_str
 
 
@@ -148,17 +153,17 @@ def process_local_file(cursor, file_path, entity_name, date_str):
             if line_num == 1:
                 continue  # Saut du header si nécessaire
 
-            if entity_name == "CONSULTATION":
-                row[3] = normalize_timestamp(row[3])
-                row[4] = normalize_timestamp(row[4])
-            if entity_name == "TRAITEMENT":
-                row[7] = normalize_timestamp(row[7])
-            if entity_name == "PERSONNEL":
-                row[4] = normalize_timestamp(row[4])
-                row[5] = normalize_timestamp(row[5])
-            if entity_name == "HOSPITALISATION":
-                row[3] = normalize_timestamp(row[3])
-                row[4] = normalize_timestamp(row[4])
+            # if entity_name == "CONSULTATION":
+            #     row[3] = normalize_timestamp(row[3])
+            #     row[4] = normalize_timestamp(row[4])
+            # if entity_name == "TRAITEMENT":
+            #     row[7] = normalize_timestamp(row[7])
+            # if entity_name == "PERSONNEL":
+            #     row[4] = normalize_timestamp(row[4])
+            #     row[5] = normalize_timestamp(row[5])
+            # if entity_name == "HOSPITALISATION":
+            #     row[3] = normalize_timestamp(row[3])
+            #     row[4] = normalize_timestamp(row[4])
 
             if len(row) != expected_cols:
                 logger.warning(f"Ligne {line_num} ignorée (colonnes {len(row)} != {expected_cols}) dans {file_path}")
