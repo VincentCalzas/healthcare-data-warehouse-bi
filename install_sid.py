@@ -1,13 +1,12 @@
 import snowflake.connector
 import os
 import logging
-import re
 import dotenv
 
 logger = logging.getLogger(__name__)
-logger.setLevel('INFO')
-logging.basicConfig(    
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+logger.setLevel("INFO")
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
 )
 
@@ -61,28 +60,7 @@ def process_sql_script(cursor, script_path):
     statements = [s.strip() for s in content.split(";") if s.strip()]
 
     for stmt in statements:
-        stmt_upper = stmt.upper()
-        match = re.search(
-            r"CREATE\s+TABLE\s+(IF\s+NOT\s+EXISTS\s+)?([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)",
-            stmt_upper,
-        )
-        if match:
-            db, schema, table = match.group(2), match.group(3), match.group(4)
-
-            if schema in ["STG", "WRK"]:
-                execute_query(cursor, f"DROP TABLE IF EXISTS {db}.{schema}.{table}")
-                execute_query(cursor, stmt)
-            elif schema in ["SOC", "TCH"]:
-                if not table_exists(cursor, db, schema, table):
-                    execute_query(cursor, stmt)
-                else:
-                    logger.info(
-                        f"Table {db}.{schema}.{table} existe déjà, non recréée."
-                    )
-            else:
-                logger.warning(f"Schéma non reconnu pour la table : {stmt}")
-        else:
-            execute_query(cursor, stmt)
+        execute_query(cursor, stmt)
 
 
 def main():
@@ -99,19 +77,6 @@ def main():
         ]
         for file in files:
             path = os.path.join(SCRIPTS_DIR, file)
-            logger.info(f"Traitement du script : {file}")
-            with open(path, "r") as f:
-                first_line = f.readline().strip()
-                match = re.search(
-                    r"CREATE\s+DATABASE\s+([a-zA-Z0-9_]+)", first_line.upper()
-                )
-                if match:
-                    db_name = match.group(1)
-                    if not database_exists(cursor, db_name):
-                        logger.info(f"Création de la base {db_name}")
-                        execute_query(cursor, f"CREATE DATABASE {db_name}")
-                    else:
-                        logger.info(f"Base {db_name} déjà existante, non recréée.")
 
             # Exécution du script complet après traitement de la base
             process_sql_script(cursor, path)
