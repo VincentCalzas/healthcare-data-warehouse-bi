@@ -32,7 +32,7 @@ SNOWFLAKE_CONFIG = {
 # Chemin local racine 
 LOCAL_DATA_ROOT = "./Data Hospital"
 
-FILE_PATTERN = re.compile(r'BDD_HOSPITAL_(\d{8})/([A-Z_]+)_\d{8}\.txt$')
+FILE_PATTERN = re.compile(r'BDD_HOSPITAL_(\d{8})/([A-Z]+)_?(\d{8})\.txt$')
 
 EXPECTED_ENTITIES = {
     "CHAMBRE",
@@ -119,7 +119,7 @@ def call_insert_procedure(cursor, entity_name, all_rows):
     for col in columns:
         formatted_col = []
         for val in col:
-            if val is None or val == '':
+            if val is None or val == '' or val == 'NULL':
                 formatted_col.append("NULL")
             else:
                 val = str(val).replace("'", "''")  # Échappement des quotes
