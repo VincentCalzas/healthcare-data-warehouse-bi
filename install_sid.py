@@ -5,9 +5,9 @@ import re
 import dotenv
 
 logger = logging.getLogger(__name__)
-logger.setLevel('INFO')
-logging.basicConfig(    
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+logger.setLevel("INFO")
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
 )
 
@@ -99,25 +99,10 @@ def main():
         ]
         for file in files:
             path = os.path.join(SCRIPTS_DIR, file)
-            logger.info(f"Traitement du script : {file}")
-            with open(path, "r") as f:
-                first_line = f.readline().strip()
-                match = re.search(
-                    r"CREATE\s+DATABASE\s+([a-zA-Z0-9_]+)", first_line.upper()
-                )
-                if match:
-                    db_name = match.group(1)
-                    if not database_exists(cursor, db_name):
-                        logger.info(f"Création de la base {db_name}")
-                        execute_query(cursor, f"CREATE DATABASE {db_name}")
-                    else:
-                        logger.info(f"Base {db_name} déjà existante, non recréée.")
-
-            # Exécution du script complet après traitement de la base
             process_sql_script(cursor, path)
 
         logger.info("Installation terminée sans erreur.")
-    except Exception as e:
+    except Exception:
         logger.exception("Erreur inattendue pendant l'installation")
     finally:
         try:
