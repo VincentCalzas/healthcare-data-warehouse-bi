@@ -24,7 +24,7 @@ SNOWFLAKE_CONFIG = {
     "schema": "PUBLIC",
 }
 
-# Chemin local racine où sont stockés tes fichiers (à adapter)
+# Chemin local racine 
 LOCAL_DATA_ROOT = "./Data Hospital"
 
 FILE_PATTERN = re.compile(r'BDD_HOSPITAL_(\d{8})/([A-Z_]+)_\d{8}\.txt$')
@@ -53,24 +53,77 @@ ENTITY_COLUMN_COUNTS = {
 def connect_snowflake():
     return snowflake.connector.connect(**SNOWFLAKE_CONFIG)
 
+def normalize_timestamp(ts_str):
 
-def call_insert_procedure(cursor, entity_name, row):
-    proc_name = f"insert_{entity_name}"
+    # Exemple attendu : '2024-04-29-17-25-30'
+
+    try:
+
+        if ts_str is None:
+
+            return None
+
+        ts_str = ts_str.replace("#", "0")
+
+        parts = ts_str.split('-')
+
+        if len(parts) == 6:
+
+            date_part = '-'.join(parts[0:3])   # '2024-04-29'
+
+            time_part = ':'.join(parts[3:6])   # '17:25:30'
+
+            return f"{date_part} {time_part}"
+
+        else:
+
+            return ts_str
+
+    except Exception:
+
+        return ts_str
+
+
+def create_procedures(cursor):
+    logger.info("Création des procédures...")
+    with open("scripts/insert_STG_procedures.sql", "r", encoding="utf-8") as f:
+        sql_script = f.read()
+
+    # On découpe chaque procédure avec END; suivie de $$ (fin de bloc)
+    procedure_blocks = re.findall(
+        r'(CREATE OR REPLACE PROCEDURE.*?END;\s*\$\$)',
+        sql_script,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+
+    for i, proc_sql in enumerate(procedure_blocks, start=1):
+        try:
+            cursor.execute(proc_sql)
+            logger.info(f"Procédure {i} créée avec succès.")
+        except Exception as e:
+            logger.warning(f"Erreur création procédure {i}: {e}")
+
+
+def call_insert_procedure(cursor, entity_name, all_rows):
+    proc_name = f"insert_{entity_name.lower()}"
+
+    # Transposer les lignes en colonnes (zip)
+    columns = list(zip(*all_rows))
 
     param_list = []
-    for val in row:
-        if val is None or val == '':
-            param_list.append("NULL")
-        elif isinstance(val, str):
-            escaped_val = val.replace("'", "''")
-            param_list.append(f"'{escaped_val}'")
-        elif isinstance(val, (float, int)):
-            param_list.append(str(val))
-        else:
-            # Pour dates ou autres, on suppose que c'est déjà une string à insérer
-            param_list.append(f"'{val}'")
+    for col in columns:
+        formatted_col = []
+        for val in col:
+            if val is None or val == '':
+                formatted_col.append("NULL")
+            else:
+                val = str(val).replace("'", "''")  # Échappement des quotes
+                formatted_col.append(f"'{val}'")
+        array_str = f"ARRAY_CONSTRUCT({', '.join(formatted_col)})"
+        param_list.append(array_str)
 
     call_sql = f"CALL {proc_name}({', '.join(param_list)})"
+    logger.debug(f"Appel SQL: {call_sql}")
     cursor.execute(call_sql)
 
 
@@ -83,30 +136,45 @@ def process_local_file(cursor, file_path, entity_name, date_str):
         return
 
     with open(file_path, newline='', encoding='utf-8') as csvfile:
-        reader = csv.reader(csvfile, delimiter=';')  # adapte le delimiter si besoin
+        reader = csv.reader(csvfile, delimiter=';')
         
-        inserted = 0
+        all_rows = []
         line_num = 0
+
         for row in reader:
             line_num += 1
+            row = row[1:]  # Retirer identifiant ou marqueur de début
 
-            row = row[1:]
-
-            # Optionnel : si le fichier a un header, on peut sauter la première ligne ici
             if line_num == 1:
-                continue
+                continue  # Saut du header si nécessaire
+
+            if entity_name == "CONSULTATION":
+                row[3] = normalize_timestamp(row[3])
+                row[4] = normalize_timestamp(row[4])
+            if entity_name == "TRAITEMENT":
+                row[7] = normalize_timestamp(row[7])
+            if entity_name == "PERSONNEL":
+                row[4] = normalize_timestamp(row[4])
+                row[5] = normalize_timestamp(row[5])
+            if entity_name == "HOSPITALISATION":
+                row[3] = normalize_timestamp(row[3])
+                row[4] = normalize_timestamp(row[4])
 
             if len(row) != expected_cols:
-                logger.warning(f"Ligne {line_num} ignorée (nombre colonnes {len(row)} != attendu {expected_cols}) dans {file_path}")
+                logger.warning(f"Ligne {line_num} ignorée (colonnes {len(row)} != {expected_cols}) dans {file_path}")
                 continue
 
-            try:
-                call_insert_procedure(cursor, entity_name, row)
-                inserted += 1
-            except Exception as e:
-                logger.warning(f"Erreur insertion ligne {line_num} dans {file_path}: {e}")
+            all_rows.append(row)
 
-    logger.info(f"{inserted} lignes insérées pour {entity_name}_{date_str}")
+        if not all_rows:
+            logger.warning(f"Aucune donnée valide dans {file_path}")
+            return
+
+        try:
+            call_insert_procedure(cursor, entity_name, all_rows)
+            logger.info(f"{len(all_rows)} lignes insérées pour {entity_name}_{date_str}")
+        except Exception as e:
+            logger.exception(f"Erreur d'insertion pour {entity_name}_{date_str} : {e}")
 
 
 def main():
@@ -114,6 +182,8 @@ def main():
         conn = connect_snowflake()
         cursor = conn.cursor()
         logger.info("Connexion établie à Snowflake.")
+
+        create_procedures(cursor)
 
         # On parcourt le dossier DATA_HOSPITAL localement
         for root, dirs, files in os.walk(LOCAL_DATA_ROOT):
