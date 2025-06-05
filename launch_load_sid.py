@@ -64,27 +64,18 @@ def connect_snowflake():
 def normalize_timestamp(ts_str):
 
     # Exemple attendu : '2024-04-29-17-25-30'
-
     try:
-
         if ts_str is None:
-
             return None
 
         ts_str = ts_str.replace("#", "0")
-
         parts = ts_str.split('-')
 
         if len(parts) == 6:
-
             date_part = '-'.join(parts[0:3])   # '2024-04-29'
-
             time_part = ':'.join(parts[3:6])   # '17:25:30'
-
             return f"{date_part} {time_part}"
-
         else:
-
             return ts_str
 
     except Exception as e:
