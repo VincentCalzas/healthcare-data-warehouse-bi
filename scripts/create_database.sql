@@ -3,22 +3,8 @@ CREATE DATABASE IF NOT EXISTS SOC;
 CREATE DATABASE IF NOT EXISTS TCH;
 CREATE DATABASE IF NOT EXISTS STG;
 
+
 GRANT ALL PRIVILEGES ON DATABASE WRK TO ROLE SYSADMIN;
 GRANT ALL PRIVILEGES ON DATABASE SOC TO ROLE SYSADMIN;
 GRANT ALL PRIVILEGES ON DATABASE TCH TO ROLE SYSADMIN;
 GRANT ALL PRIVILEGES ON DATABASE STG TO ROLE SYSADMIN;
-
-
-
--- 2. Sélection de la base de données
-USE DATABASE WRK;
-
--- 3. Sélection du schéma (par défaut c’est "PUBLIC", sauf si tu en as un autre)
-USE SCHEMA public;
-
-CREATE OR REPLACE TABLE projet_table (
-    id NUMBER AUTOINCREMENT,         -- Identifiant unique
-    nom VARCHAR,                     -- Nom de l'entrée
-    valeur VARCHAR,                  -- Une donnée quelconque
-    date_modification TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP -- Suivi des modifications
-);
