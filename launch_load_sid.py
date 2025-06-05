@@ -6,6 +6,9 @@ import dotenv
 import csv
 import datetime
 
+# Créer le dossier logs s'il n'existe pas
+os.makedirs("logs", exist_ok=True)
+
 # Initialisation du logger
 logger = logging.getLogger(__name__)
 
