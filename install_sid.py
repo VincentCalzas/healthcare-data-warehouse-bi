@@ -84,7 +84,7 @@ def main():
             process_sql_script(cursor, path)
 
         logger.info("Installation terminée sans erreur.")
-    except Exception as e:
+    except Exception:
         logger.exception("Erreur inattendue pendant l'installation")
     finally:
         try:
