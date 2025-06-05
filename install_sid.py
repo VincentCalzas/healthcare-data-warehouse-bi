@@ -2,12 +2,14 @@ import snowflake.connector
 import os
 import logging
 import dotenv
+import datetime
 
 logger = logging.getLogger(__name__)
-logger.setLevel("INFO")
+
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler(f"logs/install_sid_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"), logging.StreamHandler()],
 )
 
 # Load environment variables from .env file

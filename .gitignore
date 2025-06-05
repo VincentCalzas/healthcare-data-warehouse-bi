@@ -6,6 +6,7 @@ __pycache__/
 build/
 dist/
 wheels/
+logs/
 *.egg-info
 
 # Virtual environments
@@ -14,6 +15,7 @@ wheels/
 *.zip
 *.pdf
 *.xlsx
+
 
 __MACOSX
 .DS_Store
