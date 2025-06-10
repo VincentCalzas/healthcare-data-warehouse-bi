@@ -4,11 +4,19 @@ import logging
 import re
 import dotenv
 import csv
+import datetime
+
+# Créer le dossier logs s'il n'existe pas
+os.makedirs("logs", exist_ok=True)
 
 # Initialisation du logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler(f"logs/launch_load_sid_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"), logging.StreamHandler()],
+)
 
 # Chargement des variables d'environnement
 dotenv.load_dotenv()
@@ -27,7 +35,7 @@ SNOWFLAKE_CONFIG = {
 # Chemin local racine 
 LOCAL_DATA_ROOT = "./Data Hospital"
 
-FILE_PATTERN = re.compile(r'BDD_HOSPITAL_(\d{8})/([A-Z_]+)_\d{8}\.txt$')
+FILE_PATTERN = re.compile(r'BDD_HOSPITAL_(\d{8})/([A-Z]+)_?(\d{8})\.txt$')
 
 EXPECTED_ENTITIES = {
     "CHAMBRE",
@@ -66,7 +74,9 @@ def normalize_timestamp(ts_str):
             return f"{date_part} {time_part}"
         else:
             return ts_str
-    except Exception:
+
+    except Exception as e:
+        logger.error(f"Erreur de normalisation du timestamp '{ts_str}': {e}")
         return ts_str
 
 
@@ -100,7 +110,7 @@ def call_insert_procedure(cursor, entity_name, all_rows):
     for col in columns:
         formatted_col = []
         for val in col:
-            if val is None or val == '':
+            if val is None or val == '' or val == 'NULL':
                 formatted_col.append("NULL")
             else:
                 val = str(val).replace("'", "''")  # Échappement des quotes
@@ -134,17 +144,17 @@ def process_local_file(cursor, file_path, entity_name, date_str):
             if line_num == 1:
                 continue  # Saut du header si nécessaire
 
-            if entity_name == "CONSULTATION":
-                row[3] = normalize_timestamp(row[3])
-                row[4] = normalize_timestamp(row[4])
-            if entity_name == "TRAITEMENT":
-                row[7] = normalize_timestamp(row[7])
-            if entity_name == "PERSONNEL":
-                row[4] = normalize_timestamp(row[4])
-                row[5] = normalize_timestamp(row[5])
-            if entity_name == "HOSPITALISATION":
-                row[3] = normalize_timestamp(row[3])
-                row[4] = normalize_timestamp(row[4])
+            # if entity_name == "CONSULTATION":
+            #     row[3] = normalize_timestamp(row[3])
+            #     row[4] = normalize_timestamp(row[4])
+            # if entity_name == "TRAITEMENT":
+            #     row[7] = normalize_timestamp(row[7])
+            # if entity_name == "PERSONNEL":
+            #     row[4] = normalize_timestamp(row[4])
+            #     row[5] = normalize_timestamp(row[5])
+            # if entity_name == "HOSPITALISATION":
+            #     row[3] = normalize_timestamp(row[3])
+            #     row[4] = normalize_timestamp(row[4])
 
             if len(row) != expected_cols:
                 logger.warning(f"Ligne {line_num} ignorée (colonnes {len(row)} != {expected_cols}) dans {file_path}")
