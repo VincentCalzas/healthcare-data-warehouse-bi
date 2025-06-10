@@ -28,8 +28,8 @@ SNOWFLAKE_CONFIG = {
     "account": os.getenv("SNOWFLAKE_ACCOUNT"),
     "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE"),
     "role": os.getenv("SNOWFLAKE_ROLE"),
-    "database": "STG",
-    "schema": "PUBLIC",
+    "database": "",
+    "schema": "",
 }
 
 # Chemin local racine 
@@ -171,6 +171,8 @@ def process_local_file(cursor, file_path, entity_name, date_str):
             logger.info(f"{len(all_rows)} lignes insérées pour {entity_name}_{date_str}")
         except Exception as e:
             logger.exception(f"Erreur d'insertion pour {entity_name}_{date_str} : {e}")
+
+
 
 
 def main():
