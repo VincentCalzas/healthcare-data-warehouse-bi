@@ -78,7 +78,7 @@ CREATE OR REPLACE TABLE HOSPITALISATION (
     NO_CHAMBRE SMALLINT NOT NULL COMMENT 'Numéro de chambre',
     TS_DEBUT_HOSPI TIMESTAMP(0) NOT NULL COMMENT 'Date heure de début de l''hospitalisation',
     TS_FIN_HOSPI TIMESTAMP(0) COMMENT 'Date heure de fin de l''hospitalisation',
-    COUT_HOSPI TIMESTAMP(0) COMMENT 'Coût de l''hospitalisation',
+    COUT_HOSPI FLOAT COMMENT 'Coût de l''hospitalisation',
     ID_PERSONNEL_RESP INTEGER NOT NULL COMMENT 'Identifiant du personnel en charge de l''hospitalisation'
 );
 
