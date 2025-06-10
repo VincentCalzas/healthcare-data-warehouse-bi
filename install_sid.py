@@ -77,7 +77,6 @@ def main():
             "create_database.sql",
             "create_SOC.sql",
             "create_STG.sql",
-            "create_TCH.sql",
             "create_WRK.sql",
         ]
         for file in files:
