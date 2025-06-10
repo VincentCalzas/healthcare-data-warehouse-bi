@@ -94,6 +94,8 @@ def create_procedures(cursor):
 
     for i, proc_sql in enumerate(procedure_blocks, start=1):
         try:
+            cursor.execute("USE DATABASE STG;")
+            cursor.execute("USE SCHEMA PUBLIC;")
             cursor.execute(proc_sql)
             logger.info(f"Procédure {i} créée avec succès.")
         except Exception as e:
@@ -119,6 +121,8 @@ def call_insert_procedure(cursor, entity_name, all_rows):
         param_list.append(array_str)
 
     call_sql = f"CALL {proc_name}({', '.join(param_list)})"
+    cursor.execute("USE DATABASE STG;")
+    cursor.execute("USE SCHEMA PUBLIC;")
     logger.debug(f"Appel SQL: {call_sql}")
     cursor.execute(call_sql)
 
@@ -172,7 +176,8 @@ def process_local_file(cursor, file_path, entity_name, date_str):
         except Exception as e:
             logger.exception(f"Erreur d'insertion pour {entity_name}_{date_str} : {e}")
 
-
+def bascule_WRK_SOC():
+    return
 
 
 def main():
