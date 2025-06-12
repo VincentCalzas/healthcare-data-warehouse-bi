@@ -1,10 +1,6 @@
 INSERT INTO SOC.public.R_ROOM
 SELECT *
-FROM WRK.public.R_ROOM wrk
-WHERE NOT EXISTS (
-    SELECT 1 FROM SOC.public.R_ROOM soc
-    WHERE soc.EXEC_ID = wrk.EXEC_ID
-);
+FROM WRK.public.R_ROOM wrk;
 
 INSERT INTO SOC.public.R_PART
 SELECT *
@@ -12,65 +8,33 @@ FROM WRK.public.R_PART;
 
 INSERT INTO SOC.public.R_MEDC
 SELECT *
-FROM WRK.public.R_MEDC wrk
-WHERE NOT EXISTS (
-    SELECT 1 FROM SOC.public.R_MEDC soc
-    WHERE soc.EXEC_ID = wrk.EXEC_ID
-);
+FROM WRK.public.R_MEDC wrk;
 
 
 INSERT INTO SOC.public.O_INDV
 SELECT *
-FROM WRK.public.O_INDV wrk
-WHERE NOT EXISTS (
-    SELECT 1 FROM SOC.public.O_INDV soc
-    WHERE soc.EXEC_ID = wrk.EXEC_ID
-);
+FROM WRK.public.O_INDV wrk;
 
 INSERT INTO SOC.public.O_STFF
 SELECT *
-FROM WRK.public.O_STFF wrk
-WHERE NOT EXISTS (
-    SELECT 1 FROM SOC.public.O_STFF soc
-    WHERE soc.EXEC_ID = wrk.EXEC_ID
-);
+FROM WRK.public.O_STFF wrk;
 
 INSERT INTO SOC.public.O_ADDR
 SELECT *
-FROM WRK.public.O_ADDR wrk
-WHERE NOT EXISTS (
-    SELECT 1 FROM SOC.public.O_ADDR soc
-    WHERE soc.EXEC_ID = wrk.EXEC_ID
-);
+FROM WRK.public.O_ADDR wrk;
 
 INSERT INTO SOC.public.O_TELP
 SELECT *
-FROM WRK.public.O_TELP wrk
-WHERE NOT EXISTS (
-    SELECT 1 FROM SOC.public.O_TELP soc
-    WHERE soc.EXEC_ID = wrk.EXEC_ID
-);
+FROM WRK.public.O_TELP wrk;
 
 INSERT INTO SOC.public.O_CONS
 SELECT *
-FROM WRK.public.O_CONS wrk
-WHERE NOT EXISTS (
-    SELECT 1 FROM SOC.public.O_CONS soc
-    WHERE soc.EXEC_ID = wrk.EXEC_ID
-);
+FROM WRK.public.O_CONS wrk;
 
 INSERT INTO SOC.public.O_HOSP
 SELECT *
-FROM WRK.public.O_HOSP wrk
-WHERE NOT EXISTS (
-    SELECT 1 FROM SOC.public.O_HOSP soc
-    WHERE soc.EXEC_ID = wrk.EXEC_ID
-);
+FROM WRK.public.O_HOSP wrk;
 
 INSERT INTO SOC.public.O_TRET
 SELECT *
-FROM WRK.public.O_TRET wrk
-WHERE NOT EXISTS (
-    SELECT 1 FROM SOC.public.O_TRET soc
-    WHERE soc.EXEC_ID = wrk.EXEC_ID
-);
+FROM WRK.public.O_TRET wrk;
