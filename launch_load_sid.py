@@ -7,8 +7,23 @@ import csv
 import datetime
 import argparse
 
+from pathlib import Path
+
 # Créer le dossier logs s'il n'existe pas
-os.makedirs("logs", exist_ok=True)
+LOGS_DIR = Path("logs")
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+SCRIPTS_DIR = Path("scripts")
+if not SCRIPTS_DIR.exists():
+    raise FileNotFoundError(f"Le dossier {SCRIPTS_DIR} n'existe pas. Veuillez vérifier le chemin.")
+
+# Chemin local racine 
+LOCAL_DATA_ROOT =  Path("Data Hospital")
+if not LOCAL_DATA_ROOT.exists():
+    raise FileNotFoundError(f"Le dossier {LOCAL_DATA_ROOT} n'existe pas. Veuillez vérifier le chemin.")
+
+FOLDER_PATH_PREFIX = "BDD_HOSPITAL_"
+FILE_PATTERN = re.compile(r'([A-Z]+)_?(\d{8})$')
 
 # Initialisation du logger
 logger = logging.getLogger(__name__)
@@ -16,7 +31,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler(f"logs/launch_load_sid_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"), logging.StreamHandler()],
+    handlers=[logging.FileHandler((LOGS_DIR / f"launch_load_sid_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log").as_posix()), logging.StreamHandler()],
 )
 
 # Chargement des variables d'environnement
@@ -32,11 +47,6 @@ SNOWFLAKE_CONFIG = {
     "database": "",
     "schema": "",
 }
-
-# Chemin local racine 
-LOCAL_DATA_ROOT = "./Data Hospital"
-
-FILE_PATTERN = re.compile(r'BDD_HOSPITAL_(\d{8})/([A-Z]+)_?(\d{8})\.txt$')
 
 EXPECTED_ENTITIES = {
     "CHAMBRE",
@@ -62,28 +72,15 @@ ENTITY_COLUMN_COUNTS = {
 def connect_snowflake():
     return snowflake.connector.connect(**SNOWFLAKE_CONFIG)
 
-def normalize_timestamp(ts_str):
-    # Exemple attendu : '2024-04-29-17-25-30'
-    try:
-        if ts_str is None:
-            return None
-        ts_str = ts_str.replace("#", "0")
-        parts = ts_str.split('-')
-        if len(parts) == 6:
-            date_part = '-'.join(parts[0:3])   # '2024-04-29'
-            time_part = ':'.join(parts[3:6])   # '17:25:30'
-            return f"{date_part} {time_part}"
-        else:
-            return ts_str
-
-    except Exception as e:
-        logger.error(f"Erreur de normalisation du timestamp '{ts_str}': {e}")
-        return ts_str
-
 
 def create_procedures(cursor):
     logger.info("Création des procédures...")
-    with open("scripts/insert_STG_procedures.sql", "r", encoding="utf-8") as f:
+    sql_script = SCRIPTS_DIR / "insert_STG_procedures.sql"
+    if not sql_script.exists():
+        logger.error(f"Le fichier {sql_script} n'existe pas.")
+        raise FileNotFoundError(f"Le fichier {sql_script} n'existe pas. Veuillez vérifier le chemin.")
+    
+    with open(sql_script, "r", encoding="utf-8") as f:
         sql_script = f.read()
 
     # On découpe chaque procédure avec END; suivie de $$ (fin de bloc)
@@ -149,18 +146,6 @@ def process_local_file(cursor, file_path, entity_name, date_str):
             if line_num == 1:
                 continue  # Saut du header si nécessaire
 
-            # if entity_name == "CONSULTATION":
-            #     row[3] = normalize_timestamp(row[3])
-            #     row[4] = normalize_timestamp(row[4])
-            # if entity_name == "TRAITEMENT":
-            #     row[7] = normalize_timestamp(row[7])
-            # if entity_name == "PERSONNEL":
-            #     row[4] = normalize_timestamp(row[4])
-            #     row[5] = normalize_timestamp(row[5])
-            # if entity_name == "HOSPITALISATION":
-            #     row[3] = normalize_timestamp(row[3])
-            #     row[4] = normalize_timestamp(row[4])
-
             if len(row) != expected_cols:
                 logger.warning(f"Ligne {line_num} ignorée (colonnes {len(row)} != {expected_cols}) dans {file_path}")
                 continue
@@ -180,8 +165,12 @@ def process_local_file(cursor, file_path, entity_name, date_str):
 
 def bascule_STG_WRK(cursor):
     logger.info("Exécution du script STG vers WRK...")
+    sql_script = SCRIPTS_DIR / "insert__STG__to__WRK_STG.sql"
+    if not sql_script.exists():
+        logger.error(f"Le fichier {sql_script} n'existe pas.")
+        raise FileNotFoundError(f"Le fichier {sql_script} n'existe pas. Veuillez vérifier le chemin.")
     try:
-        with open("scripts/insert__STG__to__WRK_STG.sql", "r", encoding="utf-8") as f:
+        with open(sql_script, "r", encoding="utf-8") as f:
             sql_script = f.read()
 
         sql_statements = sql_script.split(';')
@@ -195,19 +184,21 @@ def bascule_STG_WRK(cursor):
                     logger.info(f"Statement exécuté avec succès: {statement[:100]}...")
                 except Exception as e:
                     logger.error(f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}")
-                    raise 
+                    raise e
         logger.info("Script STG vers WRK exécuté avec succès.")
-    except FileNotFoundError:
-        logger.error("Le fichier scripts/insert__STG__to__WRK_STG.sql n'a pas été trouvé.")
-        raise
+
     except Exception as e:
         logger.error(f"Erreur lors de l'exécution du script STG vers WRK: {e}")
-        raise
+        raise e
 
-def Traitement_WRK(cursor):
+def traitement_WRK(cursor):
     logger.info("Exécution du script WRK STG vers WRK SOC...")
+    script_path = SCRIPTS_DIR / "insert__WRK_STG__to__WRK_SOC.sql"
+    if not script_path.exists():
+        logger.error(f"Le fichier {script_path} n'existe pas.")
+        raise FileNotFoundError(f"Le fichier {script_path} n'existe pas. Veuillez vérifier le chemin.")
     try:
-        with open("scripts/insert__WRK_STG__to__WRK_SOC.sql", "r", encoding="utf-8") as f:
+        with open(script_path, "r", encoding="utf-8") as f:
             sql_script = f.read()
 
         sql_statements = sql_script.split(';')
@@ -221,19 +212,21 @@ def Traitement_WRK(cursor):
                     logger.info(f"Statement exécuté avec succès: {statement[:100]}...")
                 except Exception as e:
                     logger.error(f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}")
-                    raise
+                    raise e
         logger.info("Script WRK STG vers WRK SOC exécuté avec succès.")
-    except FileNotFoundError:
-        logger.error("Le fichier scripts/insert__WRK_STG__to__WRK_SOC.sql n'a pas été trouvé.")
-        raise
+
     except Exception as e:
         logger.error(f"Erreur lors de l'exécution du script WRK STG vers WRK SOC: {e}")
-        raise
+        raise e
 
 def bascule_WRK_SOC(cursor):
     logger.info("Exécution du script WRK_SOC vers SOC...")
+    sql_script = SCRIPTS_DIR / "insert__WRK_SOC__to__SOC.sql"
+    if not sql_script.exists():
+        logger.error(f"Le fichier {sql_script} n'existe pas.")
+        raise FileNotFoundError(f"Le fichier {sql_script} n'existe pas. Veuillez vérifier le chemin.")
     try:
-        with open("scripts/insert__WRK_SOC__to__SOC.sql", "r", encoding="utf-8") as f:
+        with open(sql_script, "r", encoding="utf-8") as f:
             sql_script = f.read()
 
         sql_statements = sql_script.split(';')
@@ -247,21 +240,23 @@ def bascule_WRK_SOC(cursor):
                     logger.info(f"Statement exécuté avec succès: {statement[:100]}...")
                 except Exception as e:
                     logger.error(f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}")
-                    raise 
+                    raise e
         logger.info("Script WRK_SOC vers SOC exécuté avec succès.")
-    except FileNotFoundError:
-        logger.error("Le fichier scripts/insert__WRK_SOC__to__SOC.sql n'a pas été trouvé.")
-        raise
     except Exception as e:
         logger.error(f"Erreur lors de l'exécution du script WRK_SOC vers SOC: {e}")
-        raise
+        raise e
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", help="Date spécifique au format YYYYMMDD", required=False)
+    parser.add_argument("--date", type=str, help="Date spécifique au format YYYYMMDD", required=True)
     args = parser.parse_args()
 
+    folder_date = LOCAL_DATA_ROOT / (FOLDER_PATH_PREFIX + args.date)
+    if not folder_date.exists():
+        logger.error(f"Le dossier {folder_date} n'existe pas. Veuillez vérifier le chemin.")
+        raise FileNotFoundError(f"Le dossier {folder_date} n'existe pas. Veuillez vérifier le chemin.")
+    
     try:
         conn = connect_snowflake()
         cursor = conn.cursor()
@@ -269,40 +264,39 @@ def main():
 
         create_procedures(cursor)
 
-        # On parcourt le dossier DATA_HOSPITAL localement
-        for root, dirs, files in os.walk(LOCAL_DATA_ROOT):
-            for file_name in files:
-                if not file_name.endswith(".txt"):
-                    continue
+        # On parcourt les fichiers txt dans le dossier contenant les données du jour dans DATA_HOSPITAL localement avec pathlib
+        for file_path in folder_date.glob("*.txt"):
 
-                relative_path = os.path.relpath(os.path.join(root, file_name), LOCAL_DATA_ROOT)
-                match = FILE_PATTERN.search(relative_path.replace("\\", "/"))  # pour Windows aussi
-                if not match:
-                    logger.info(f"Ignoré (fichier non reconnu) : {relative_path}")
-                    continue
+            match = FILE_PATTERN.search(file_path.stem)
+            if not match:
+                logger.warning(f"Ignoré (fichier non reconnu) : {file_path}")
+                continue
 
-                date_str, entity = match.group(1), match.group(2)
-                if args.date and date_str != args.date:
-                    continue
-            
-                if entity not in EXPECTED_ENTITIES:
-                    logger.warning(f"Fichier inattendu : {relative_path}")
-                    continue
+            entity, date_str = match.group(1), match.group(2)
+            if date_str != args.date:
+                logger.warning(f"Ignoré (date non correspondante) : {file_path}")
+                continue
+        
+            if entity not in EXPECTED_ENTITIES:
+                logger.warning(f"Fichier inattendu : {file_path}")
+                continue
 
-                full_local_path = os.path.join(LOCAL_DATA_ROOT, relative_path)
-                try:
-                    process_local_file(cursor, full_local_path, entity, date_str)
-                    bascule_STG_WRK(cursor)
-                    Traitement_WRK(cursor)
-                    bascule_WRK_SOC(cursor)
-                except Exception as e:
-                    logger.exception(f"Erreur sur fichier {entity}_{date_str} : {e}")
+            try:
+                process_local_file(cursor, file_path, entity, date_str)
+            except Exception as e:
+                logger.exception(f"Erreur sur fichier {entity}_{date_str} : {e}")
 
         conn.commit()  # commit global des inserts
 
     except Exception as e:
         logger.exception("Erreur inattendue pendant le chargement")
     finally:
+        try:
+            bascule_STG_WRK(cursor)
+            traitement_WRK(cursor)
+            bascule_WRK_SOC(cursor)
+        except Exception as e:
+            logger.exception(f"Erreur lors dans le traitement de données : {e}")
         try:
             cursor.close()
             conn.close()
