@@ -5,6 +5,7 @@ import re
 import dotenv
 import csv
 import datetime
+import argparse
 
 # Créer le dossier logs s'il n'existe pas
 os.makedirs("logs", exist_ok=True)
@@ -257,6 +258,10 @@ def bascule_WRK_SOC(cursor):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", help="Date spécifique au format YYYYMMDD", required=False)
+    args = parser.parse_args()
+
     try:
         conn = connect_snowflake()
         cursor = conn.cursor()
@@ -277,6 +282,9 @@ def main():
                     continue
 
                 date_str, entity = match.group(1), match.group(2)
+                if args.date and date_str != args.date:
+                    continue
+            
                 if entity not in EXPECTED_ENTITIES:
                     logger.warning(f"Fichier inattendu : {relative_path}")
                     continue
