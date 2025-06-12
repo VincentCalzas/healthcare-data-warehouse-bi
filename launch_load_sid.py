@@ -176,8 +176,84 @@ def process_local_file(cursor, file_path, entity_name, date_str):
         except Exception as e:
             logger.exception(f"Erreur d'insertion pour {entity_name}_{date_str} : {e}")
 
-def bascule_WRK_SOC():
-    return
+
+def bascule_STG_WRK(cursor):
+    logger.info("Exécution du script STG vers WRK...")
+    try:
+        with open("scripts/insert__STG__to__WRK_STG.sql", "r", encoding="utf-8") as f:
+            sql_script = f.read()
+
+        sql_statements = sql_script.split(';')
+        for statement in sql_statements:
+            statement = statement.strip()
+            if statement:
+                try:
+                    cursor.execute("USE DATABASE WRK;")
+                    cursor.execute("USE SCHEMA PUBLIC;")
+                    cursor.execute(statement)
+                    logger.info(f"Statement exécuté avec succès: {statement[:100]}...")
+                except Exception as e:
+                    logger.error(f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}")
+                    raise 
+        logger.info("Script STG vers WRK exécuté avec succès.")
+    except FileNotFoundError:
+        logger.error("Le fichier scripts/insert__STG__to__WRK_STG.sql n'a pas été trouvé.")
+        raise
+    except Exception as e:
+        logger.error(f"Erreur lors de l'exécution du script STG vers WRK: {e}")
+        raise
+
+def Traitement_WRK(cursor):
+    logger.info("Exécution du script WRK STG vers WRK SOC...")
+    try:
+        with open("scripts/insert__WRK_STG__to__WRK_SOC.sql", "r", encoding="utf-8") as f:
+            sql_script = f.read()
+
+        sql_statements = sql_script.split(';')
+        for statement in sql_statements:
+            statement = statement.strip()
+            if statement:
+                try:
+                    cursor.execute("USE DATABASE WRK;")
+                    cursor.execute("USE SCHEMA PUBLIC;")
+                    cursor.execute(statement)
+                    logger.info(f"Statement exécuté avec succès: {statement[:100]}...")
+                except Exception as e:
+                    logger.error(f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}")
+                    raise
+        logger.info("Script WRK STG vers WRK SOC exécuté avec succès.")
+    except FileNotFoundError:
+        logger.error("Le fichier scripts/insert__WRK_STG__to__WRK_SOC.sql n'a pas été trouvé.")
+        raise
+    except Exception as e:
+        logger.error(f"Erreur lors de l'exécution du script WRK STG vers WRK SOC: {e}")
+        raise
+
+def bascule_WRK_SOC(cursor):
+    logger.info("Exécution du script WRK_SOC vers SOC...")
+    try:
+        with open("scripts/insert__WRK_SOC__to__SOC.sql", "r", encoding="utf-8") as f:
+            sql_script = f.read()
+
+        sql_statements = sql_script.split(';')
+        for statement in sql_statements:
+            statement = statement.strip()
+            if statement:
+                try:
+                    cursor.execute("USE DATABASE SOC;")
+                    cursor.execute("USE SCHEMA PUBLIC;")
+                    cursor.execute(statement)
+                    logger.info(f"Statement exécuté avec succès: {statement[:100]}...")
+                except Exception as e:
+                    logger.error(f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}")
+                    raise 
+        logger.info("Script WRK_SOC vers SOC exécuté avec succès.")
+    except FileNotFoundError:
+        logger.error("Le fichier scripts/insert__WRK_SOC__to__SOC.sql n'a pas été trouvé.")
+        raise
+    except Exception as e:
+        logger.error(f"Erreur lors de l'exécution du script WRK_SOC vers SOC: {e}")
+        raise
 
 
 def main():
@@ -208,6 +284,9 @@ def main():
                 full_local_path = os.path.join(LOCAL_DATA_ROOT, relative_path)
                 try:
                     process_local_file(cursor, full_local_path, entity, date_str)
+                    bascule_STG_WRK(cursor)
+                    Traitement_WRK(cursor)
+                    bascule_WRK_SOC(cursor)
                 except Exception as e:
                     logger.exception(f"Erreur sur fichier {entity}_{date_str} : {e}")
 
