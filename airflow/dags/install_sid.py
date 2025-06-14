@@ -8,7 +8,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id="init_snowflake_tables",
+    dag_id="install_sid",
     start_date = datetime.now() - timedelta(days=1),
     schedule="@once",  # Exécution manuelle uniquement
     catchup=False,
