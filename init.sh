@@ -14,9 +14,9 @@ else
 fi
 
 # Vérifier que les variables Snowflake sont définies
-if [ -z "$SNOWFLAKE_USER" ] || [ -z "$SNOWFLAKE_PASSWORD" ] || [ -z "$SNOWFLAKE_ACCOUNT" ] || [ -z "$SNOWFLAKE_WAREHOUSE" ] || [ -z "$SNOWFLAKE_ROLE" ]; then
+if [ -z "$SNOWFLAKE_USER" ] || [ -z "$SNOWFLAKE_ACCOUNT" ] || [ -z "$SNOWFLAKE_WAREHOUSE" ] || [ -z "$SNOWFLAKE_ROLE" ] || [ -z "$SNOWFLAKE_PRIVATE_KEY" ]; then
     echo "Variables Snowflake manquantes dans le fichier .env !"
-    echo "Variables requises : SNOWFLAKE_USER, SNOWFLAKE_PASSWORD, SNOWFLAKE_ACCOUNT, SNOWFLAKE_WAREHOUSE, SNOWFLAKE_ROLE"
+    echo "Variables requises : SNOWFLAKE_USER, SNOWFLAKE_PASSWORD, SNOWFLAKE_ACCOUNT, SNOWFLAKE_WAREHOUSE, SNOWFLAKE_ROLE, SNOWFLAKE_PRIVATE_KEY"
     exit 1
 fi
 
@@ -46,8 +46,7 @@ echo "   Rôle: $SNOWFLAKE_ROLE"
 uv run airflow connections add my_snowflake_conn \
   --conn-type snowflake \
   --conn-login "$SNOWFLAKE_USER" \
-  --conn-password "$SNOWFLAKE_PASSWORD" \
-  --conn-extra "{\"account\":\"$SNOWFLAKE_ACCOUNT\",\"warehouse\":\"$SNOWFLAKE_WAREHOUSE\",\"role\":\"$SNOWFLAKE_ROLE\"}"
+  --conn-extra "{\"account\":\"$SNOWFLAKE_ACCOUNT\",\"warehouse\":\"$SNOWFLAKE_WAREHOUSE\",\"role\":\"$SNOWFLAKE_ROLE\",\"private_key_content\":\"$SNOWFLAKE_PRIVATE_KEY\"}"
 
 echo ""
 echo "Configuration terminée ! Lancement d'Airflow..."
