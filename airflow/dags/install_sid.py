@@ -1,21 +1,7 @@
 from airflow import DAG
-from airflow.models import Connection
 from airflow.providers.snowflake.operators.snowflake import SnowflakeSqlApiOperator
 from datetime import datetime, timedelta
-import json
 import os
-
-conn = Connection(
-    conn_id="my_snowflake_conn",
-    conn_type="snowflake",
-    login="QUENTIN",
-    password='aFq0YW,i%2fm#Uy_|5r-',
-    extra=json.dumps({
-        "account": "CVDFQQX-VN38358",
-        "warehouse": "COMPUTE_WH",
-        "role": "ACCOUNTADMIN"
-    }),
-)
 
 # Fonction utilitaire pour construire le chemin du fichier SQL
 def get_sql_path(filename):
