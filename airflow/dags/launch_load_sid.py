@@ -13,6 +13,8 @@ from airflow.providers.standard.operators.python import PythonOperator
 
 default_args = {
     "owner": "airflow",
+    "retries": 3,
+    "retry-delay": timedelta(minutes=1)
 }
 
 DATA_ROOT = Path("Data Hospital")  # à adapter si nécessaire
@@ -104,9 +106,8 @@ def load_files_to_snowflake(**context):
 with DAG(
     dag_id="launch_load_sid",
     start_date=datetime(2024, 4, 29),
-    # schedule="@daily", #NOTE:C'est l'enfer desactivez moi ca, s'il vous plait🙏😭
-    # C'est de l'harcelement, il lance une centaine de dags a la fois
-    # et moi je peux pas suivre. Pauvre de moi.😭
+    end_date=datetime(2024,5,8),
+    schedule="@daily", 
     catchup=True,
     default_args=default_args,
     description="Pipeline complet de chargement et transformation STG → SOC",
