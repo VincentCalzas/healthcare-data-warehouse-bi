@@ -1,8 +1,9 @@
-import snowflake.connector
-import os
-import logging
-import dotenv
 import datetime
+import logging
+import os
+
+import dotenv
+import snowflake.connector
 
 # Créer le dossier logs s'il n'existe pas
 os.makedirs("logs", exist_ok=True)
@@ -12,7 +13,12 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler(f"logs/install_sid_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"), logging.StreamHandler()],
+    handlers=[
+        logging.FileHandler(
+            f"logs/install_sid_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
+        ),
+        logging.StreamHandler(),
+    ],
 )
 
 # Load environment variables from .env file
@@ -41,9 +47,9 @@ def execute_query(cursor, query):
     try:
         cursor.execute(query)
         logger.info(f"Exécuté : {query.strip()[:100]}")
-    except Exception as e:
+    except Exception:
         logger.exception(
-            f"Erreur lors de l'exécution de la requête : {query.strip()[:100]}"
+            f"Erreur lors de l'exécution de la requête : {query.strip()[:100]}",
         )
 
 
@@ -58,7 +64,7 @@ def table_exists(cursor, db, schema, table):
 
 
 def process_sql_script(cursor, script_path):
-    with open(script_path, "r") as f:
+    with open(script_path) as f:
         content = f.read()
 
     # Découper en requêtes individuelles

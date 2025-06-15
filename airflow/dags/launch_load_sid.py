@@ -1,23 +1,23 @@
-from airflow import DAG
-from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.snowflake.operators.snowflake import SnowflakeSqlApiOperator
+import csv
+import os
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
-import os
-import csv
-import re
+
 import dotenv
 import snowflake.connector
 
+from airflow import DAG
+from airflow.providers.snowflake.operators.snowflake import SnowflakeSqlApiOperator
+from airflow.providers.standard.operators.python import PythonOperator
+
 default_args = {
     "owner": "airflow",
-    "retries": 1,
-    "retry_delay": timedelta(minutes=5),
 }
 
 DATA_ROOT = Path("Data Hospital")  # à adapter si nécessaire
 FOLDER_PATH_PREFIX = "BDD_HOSPITAL_"
-FILE_PATTERN = re.compile(r'([A-Z]+)_?(\d{8})$')
+FILE_PATTERN = re.compile(r"([A-Z]+)_?(\d{8})$")
 
 ENTITY_COLUMN_COUNTS = {
     "CHAMBRE": 7,
@@ -26,18 +26,20 @@ ENTITY_COLUMN_COUNTS = {
     "MEDICAMENT": 5,
     "PATIENT": 17,
     "PERSONNEL": 10,
-    "TRAITEMENT": 8
+    "TRAITEMENT": 8,
 }
 EXPECTED_ENTITIES = set(ENTITY_COLUMN_COUNTS.keys())
 
-dotenv.load_dotenv()  
+dotenv.load_dotenv()
+
 
 def load_files_to_snowflake(**context):
     dag_run = context.get("dag_run")
-    if dag_run and dag_run.conf and "date" in dag_run.conf:
-        date_str = dag_run.conf["date"]
-    else:
-        date_str = context["logical_date"].strftime("%Y%m%d")
+    date_str = (
+        dag_run.conf["date"]
+        if dag_run and dag_run.conf and "date" in dag_run.conf
+        else context["logical_date"].strftime("%Y%m%d")
+    )
 
     if not date_str:
         raise ValueError("La date doit être fournie dans conf.date au format YYYYMMDD")
@@ -48,7 +50,9 @@ def load_files_to_snowflake(**context):
 
     conn = snowflake.connector.connect(
         user=os.getenv("SNOWFLAKE_USER"),
-        private_key=os.getenv("SNOWFLAKE_PRIVATE_KEY"),
+        password=os.getenv("SNOWFLAKE_PASSWORD"),
+        authenticator="SNOWFLAKE_JWT",
+        private_key=os.getenv("SNOWFLAKE_PRIVATE_KEY_BASE64"),
         account=os.getenv("SNOWFLAKE_ACCOUNT"),
         warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
         role=os.getenv("SNOWFLAKE_ROLE"),
@@ -64,8 +68,8 @@ def load_files_to_snowflake(**context):
         if entity not in EXPECTED_ENTITIES or file_date != date_str:
             continue
 
-        with open(file_path, newline='', encoding='utf-8') as f:
-            reader = csv.reader(f, delimiter=';')
+        with open(file_path, newline="", encoding="utf-8") as f:
+            reader = csv.reader(f, delimiter=";")
             all_rows = []
             for i, row in enumerate(reader):
                 row = row[1:]  # Retire l’ID
@@ -78,10 +82,13 @@ def load_files_to_snowflake(**context):
         if not all_rows:
             continue
 
-        columns = list(zip(*all_rows))
+        columns = list(zip(*all_rows, strict=False))
         param_list = []
         for col in columns:
-            formatted = ["NULL" if v in (None, '', 'NULL') else f"'{str(v).replace('\'', '\'\'')}'" for v in col]
+            formatted = [
+                "NULL" if v in (None, "", "NULL") else f"'{str(v).replace("'", "''")}'"
+                for v in col
+            ]
             param_list.append(f"ARRAY_CONSTRUCT({', '.join(formatted)})")
 
         call_sql = f"CALL insert_{entity.lower()}({', '.join(param_list)})"
@@ -97,34 +104,35 @@ def load_files_to_snowflake(**context):
 with DAG(
     dag_id="launch_load_sid",
     start_date=datetime(2024, 4, 29),
-    schedule='@daily',
+    # schedule="@daily", #NOTE:C'est l'enfer desactivez moi ca, s'il vous plait🙏😭
+    # C'est de l'harcelement, il lance une centaine de dags a la fois
+    # et moi je peux pas suivre. Pauvre de moi.😭
     catchup=True,
     default_args=default_args,
     description="Pipeline complet de chargement et transformation STG → SOC",
 ) as dag:
-
     create_db = SnowflakeSqlApiOperator(
         task_id="create_database",
         sql="scripts/create_database.sql",
-        snowflake_conn_id="my_snowflake_conn"
+        snowflake_conn_id="my_snowflake_conn",
     )
 
     create_soc = SnowflakeSqlApiOperator(
         task_id="create_SOC",
         sql="scripts/create_SOC.sql",
-        snowflake_conn_id="my_snowflake_conn"
+        snowflake_conn_id="my_snowflake_conn",
     )
 
     create_stg = SnowflakeSqlApiOperator(
         task_id="create_STG",
         sql="scripts/create_STG.sql",
-        snowflake_conn_id="my_snowflake_conn"
+        snowflake_conn_id="my_snowflake_conn",
     )
 
     create_wrk = SnowflakeSqlApiOperator(
         task_id="create_WRK",
         sql="scripts/create_WRK.sql",
-        snowflake_conn_id="my_snowflake_conn"
+        snowflake_conn_id="my_snowflake_conn",
     )
 
     create_procs = SnowflakeSqlApiOperator(
@@ -156,5 +164,12 @@ with DAG(
         snowflake_conn_id="my_snowflake_conn",
     )
 
-
-    create_db >> create_soc >> create_stg >> create_wrk >> create_procs >> load_local_files >> stg_to_wrk >> wrk_stg_to_wrk_soc >> wrk_soc_to_soc
+    (
+        create_db
+        >> [create_soc, create_stg, create_wrk]
+        >> create_procs
+        >> load_local_files
+        >> stg_to_wrk
+        >> wrk_stg_to_wrk_soc
+        >> wrk_soc_to_soc
+    )

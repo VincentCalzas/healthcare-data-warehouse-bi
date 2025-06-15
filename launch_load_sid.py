@@ -1,13 +1,13 @@
-import snowflake.connector
-import os
-import logging
-import re
-import dotenv
+import argparse
 import csv
 import datetime
-import argparse
-
+import logging
+import os
+import re
 from pathlib import Path
+
+import dotenv
+import snowflake.connector
 
 # Créer le dossier logs s'il n'existe pas
 LOGS_DIR = Path("logs")
@@ -15,15 +15,19 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 SCRIPTS_DIR = Path("scripts")
 if not SCRIPTS_DIR.exists():
-    raise FileNotFoundError(f"Le dossier {SCRIPTS_DIR} n'existe pas. Veuillez vérifier le chemin.")
+    raise FileNotFoundError(
+        f"Le dossier {SCRIPTS_DIR} n'existe pas. Veuillez vérifier le chemin.",
+    )
 
-# Chemin local racine 
-LOCAL_DATA_ROOT =  Path("Data Hospital")
+# Chemin local racine
+LOCAL_DATA_ROOT = Path("Data Hospital")
 if not LOCAL_DATA_ROOT.exists():
-    raise FileNotFoundError(f"Le dossier {LOCAL_DATA_ROOT} n'existe pas. Veuillez vérifier le chemin.")
+    raise FileNotFoundError(
+        f"Le dossier {LOCAL_DATA_ROOT} n'existe pas. Veuillez vérifier le chemin.",
+    )
 
 FOLDER_PATH_PREFIX = "BDD_HOSPITAL_"
-FILE_PATTERN = re.compile(r'([A-Z]+)_?(\d{8})$')
+FILE_PATTERN = re.compile(r"([A-Z]+)_?(\d{8})$")
 
 # Initialisation du logger
 logger = logging.getLogger(__name__)
@@ -31,7 +35,15 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler((LOGS_DIR / f"launch_load_sid_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log").as_posix()), logging.StreamHandler()],
+    handlers=[
+        logging.FileHandler(
+            (
+                LOGS_DIR
+                / f"launch_load_sid_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+            ).as_posix(),
+        ),
+        logging.StreamHandler(),
+    ],
 )
 
 # Chargement des variables d'environnement
@@ -55,7 +67,7 @@ EXPECTED_ENTITIES = {
     "MEDICAMENT",
     "PATIENT",
     "PERSONNEL",
-    "TRAITEMENT"
+    "TRAITEMENT",
 }
 
 ENTITY_COLUMN_COUNTS = {
@@ -65,7 +77,7 @@ ENTITY_COLUMN_COUNTS = {
     "MEDICAMENT": 5,
     "PATIENT": 17,
     "PERSONNEL": 10,
-    "TRAITEMENT": 8
+    "TRAITEMENT": 8,
 }
 
 
@@ -78,16 +90,18 @@ def create_procedures(cursor):
     sql_script = SCRIPTS_DIR / "insert_STG_procedures.sql"
     if not sql_script.exists():
         logger.error(f"Le fichier {sql_script} n'existe pas.")
-        raise FileNotFoundError(f"Le fichier {sql_script} n'existe pas. Veuillez vérifier le chemin.")
-    
-    with open(sql_script, "r", encoding="utf-8") as f:
+        raise FileNotFoundError(
+            f"Le fichier {sql_script} n'existe pas. Veuillez vérifier le chemin.",
+        )
+
+    with open(sql_script, encoding="utf-8") as f:
         sql_script = f.read()
 
     # On découpe chaque procédure avec END; suivie de $$ (fin de bloc)
     procedure_blocks = re.findall(
-        r'(CREATE OR REPLACE PROCEDURE.*?END;\s*\$\$)',
+        r"(CREATE OR REPLACE PROCEDURE.*?END;\s*\$\$)",
         sql_script,
-        flags=re.DOTALL | re.IGNORECASE
+        flags=re.DOTALL | re.IGNORECASE,
     )
 
     for i, proc_sql in enumerate(procedure_blocks, start=1):
@@ -104,13 +118,13 @@ def call_insert_procedure(cursor, entity_name, all_rows):
     proc_name = f"insert_{entity_name.lower()}"
 
     # Transposer les lignes en colonnes (zip)
-    columns = list(zip(*all_rows))
+    columns = list(zip(*all_rows, strict=False))
 
     param_list = []
     for col in columns:
         formatted_col = []
         for val in col:
-            if val is None or val == '' or val == 'NULL':
+            if val is None or val == "" or val == "NULL":
                 formatted_col.append("NULL")
             else:
                 val = str(val).replace("'", "''")  # Échappement des quotes
@@ -126,16 +140,18 @@ def call_insert_procedure(cursor, entity_name, all_rows):
 
 
 def process_local_file(cursor, file_path, entity_name, date_str):
-    logger.info(f"Traitement local de {entity_name} pour la date {date_str} - fichier: {file_path}")
+    logger.info(
+        f"Traitement local de {entity_name} pour la date {date_str} - fichier: {file_path}",
+    )
 
     expected_cols = ENTITY_COLUMN_COUNTS.get(entity_name)
     if not expected_cols:
         logger.error(f"Nombre de colonnes inconnu pour l'entité {entity_name}")
         return
 
-    with open(file_path, newline='', encoding='utf-8') as csvfile:
-        reader = csv.reader(csvfile, delimiter=';')
-        
+    with open(file_path, newline="", encoding="utf-8") as csvfile:
+        reader = csv.reader(csvfile, delimiter=";")
+
         all_rows = []
         line_num = 0
 
@@ -147,7 +163,9 @@ def process_local_file(cursor, file_path, entity_name, date_str):
                 continue  # Saut du header si nécessaire
 
             if len(row) != expected_cols:
-                logger.warning(f"Ligne {line_num} ignorée (colonnes {len(row)} != {expected_cols}) dans {file_path}")
+                logger.warning(
+                    f"Ligne {line_num} ignorée (colonnes {len(row)} != {expected_cols}) dans {file_path}",
+                )
                 continue
 
             all_rows.append(row)
@@ -158,7 +176,9 @@ def process_local_file(cursor, file_path, entity_name, date_str):
 
         try:
             call_insert_procedure(cursor, entity_name, all_rows)
-            logger.info(f"{len(all_rows)} lignes insérées pour {entity_name}_{date_str}")
+            logger.info(
+                f"{len(all_rows)} lignes insérées pour {entity_name}_{date_str}",
+            )
         except Exception as e:
             logger.exception(f"Erreur d'insertion pour {entity_name}_{date_str} : {e}")
 
@@ -168,12 +188,14 @@ def bascule_STG_WRK(cursor):
     sql_script = SCRIPTS_DIR / "insert__STG__to__WRK_STG.sql"
     if not sql_script.exists():
         logger.error(f"Le fichier {sql_script} n'existe pas.")
-        raise FileNotFoundError(f"Le fichier {sql_script} n'existe pas. Veuillez vérifier le chemin.")
+        raise FileNotFoundError(
+            f"Le fichier {sql_script} n'existe pas. Veuillez vérifier le chemin.",
+        )
     try:
-        with open(sql_script, "r", encoding="utf-8") as f:
+        with open(sql_script, encoding="utf-8") as f:
             sql_script = f.read()
 
-        sql_statements = sql_script.split(';')
+        sql_statements = sql_script.split(";")
         for statement in sql_statements:
             statement = statement.strip()
             if statement:
@@ -183,7 +205,9 @@ def bascule_STG_WRK(cursor):
                     cursor.execute(statement)
                     logger.info(f"Statement exécuté avec succès: {statement[:100]}...")
                 except Exception as e:
-                    logger.error(f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}")
+                    logger.error(
+                        f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}",
+                    )
                     raise e
         logger.info("Script STG vers WRK exécuté avec succès.")
 
@@ -191,17 +215,20 @@ def bascule_STG_WRK(cursor):
         logger.error(f"Erreur lors de l'exécution du script STG vers WRK: {e}")
         raise e
 
+
 def traitement_WRK(cursor):
     logger.info("Exécution du script WRK STG vers WRK SOC...")
     script_path = SCRIPTS_DIR / "insert__WRK_STG__to__WRK_SOC.sql"
     if not script_path.exists():
         logger.error(f"Le fichier {script_path} n'existe pas.")
-        raise FileNotFoundError(f"Le fichier {script_path} n'existe pas. Veuillez vérifier le chemin.")
+        raise FileNotFoundError(
+            f"Le fichier {script_path} n'existe pas. Veuillez vérifier le chemin.",
+        )
     try:
-        with open(script_path, "r", encoding="utf-8") as f:
+        with open(script_path, encoding="utf-8") as f:
             sql_script = f.read()
 
-        sql_statements = sql_script.split(';')
+        sql_statements = sql_script.split(";")
         for statement in sql_statements:
             statement = statement.strip()
             if statement:
@@ -211,7 +238,9 @@ def traitement_WRK(cursor):
                     cursor.execute(statement)
                     logger.info(f"Statement exécuté avec succès: {statement[:100]}...")
                 except Exception as e:
-                    logger.error(f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}")
+                    logger.error(
+                        f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}",
+                    )
                     raise e
         logger.info("Script WRK STG vers WRK SOC exécuté avec succès.")
 
@@ -219,17 +248,20 @@ def traitement_WRK(cursor):
         logger.error(f"Erreur lors de l'exécution du script WRK STG vers WRK SOC: {e}")
         raise e
 
+
 def bascule_WRK_SOC(cursor):
     logger.info("Exécution du script WRK_SOC vers SOC...")
     sql_script = SCRIPTS_DIR / "insert__WRK_SOC__to__SOC.sql"
     if not sql_script.exists():
         logger.error(f"Le fichier {sql_script} n'existe pas.")
-        raise FileNotFoundError(f"Le fichier {sql_script} n'existe pas. Veuillez vérifier le chemin.")
+        raise FileNotFoundError(
+            f"Le fichier {sql_script} n'existe pas. Veuillez vérifier le chemin.",
+        )
     try:
-        with open(sql_script, "r", encoding="utf-8") as f:
+        with open(sql_script, encoding="utf-8") as f:
             sql_script = f.read()
 
-        sql_statements = sql_script.split(';')
+        sql_statements = sql_script.split(";")
         for statement in sql_statements:
             statement = statement.strip()
             if statement:
@@ -239,7 +271,9 @@ def bascule_WRK_SOC(cursor):
                     cursor.execute(statement)
                     logger.info(f"Statement exécuté avec succès: {statement[:100]}...")
                 except Exception as e:
-                    logger.error(f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}")
+                    logger.error(
+                        f"Erreur lors de l'exécution de la requête: {statement[:100]}... Erreur: {e}",
+                    )
                     raise e
         logger.info("Script WRK_SOC vers SOC exécuté avec succès.")
     except Exception as e:
@@ -249,14 +283,20 @@ def bascule_WRK_SOC(cursor):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", type=str, help="Date spécifique au format YYYYMMDD", required=True)
+    parser.add_argument(
+        "--date", type=str, help="Date spécifique au format YYYYMMDD", required=True,
+    )
     args = parser.parse_args()
 
     folder_date = LOCAL_DATA_ROOT / (FOLDER_PATH_PREFIX + args.date)
     if not folder_date.exists():
-        logger.error(f"Le dossier {folder_date} n'existe pas. Veuillez vérifier le chemin.")
-        raise FileNotFoundError(f"Le dossier {folder_date} n'existe pas. Veuillez vérifier le chemin.")
-    
+        logger.error(
+            f"Le dossier {folder_date} n'existe pas. Veuillez vérifier le chemin.",
+        )
+        raise FileNotFoundError(
+            f"Le dossier {folder_date} n'existe pas. Veuillez vérifier le chemin.",
+        )
+
     try:
         conn = connect_snowflake()
         cursor = conn.cursor()
@@ -266,7 +306,6 @@ def main():
 
         # On parcourt les fichiers txt dans le dossier contenant les données du jour dans DATA_HOSPITAL localement avec pathlib
         for file_path in folder_date.glob("*.txt"):
-
             match = FILE_PATTERN.search(file_path.stem)
             if not match:
                 logger.warning(f"Ignoré (fichier non reconnu) : {file_path}")
@@ -276,7 +315,7 @@ def main():
             if date_str != args.date:
                 logger.warning(f"Ignoré (date non correspondante) : {file_path}")
                 continue
-        
+
             if entity not in EXPECTED_ENTITIES:
                 logger.warning(f"Fichier inattendu : {file_path}")
                 continue
@@ -288,7 +327,7 @@ def main():
 
         conn.commit()  # commit global des inserts
 
-    except Exception as e:
+    except Exception:
         logger.exception("Erreur inattendue pendant le chargement")
     finally:
         try:

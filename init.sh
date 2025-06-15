@@ -5,18 +5,19 @@ echo "=========================================="
 
 
 # Charger les variables d'environnement depuis le fichier .env
-if [ -f ".env" ]; then
-    echo "Chargement des variables d'environnement depuis .env..."
-    export $(grep -v '^#' .env | xargs)
+if [ -f .env ]; then
+    set -a # Automatically export all variables defined afterwards
+    . ./.env # Source the .env file (the dot is shorthand for source)
+    set +a # Turn off automatic export
 else
     echo "Fichier .env non trouvé !"
     exit 1
 fi
 
 # Vérifier que les variables Snowflake sont définies
-if [ -z "$SNOWFLAKE_USER" ] || [ -z "$SNOWFLAKE_ACCOUNT" ] || [ -z "$SNOWFLAKE_WAREHOUSE" ] || [ -z "$SNOWFLAKE_ROLE" ] || [ -z "$SNOWFLAKE_PRIVATE_KEY" ]; then
+if [ -z "$SNOWFLAKE_USER" ] || [ -z "$SNOWFLAKE_ACCOUNT" ] || [ -z "$SNOWFLAKE_WAREHOUSE" ] || [ -z "$SNOWFLAKE_ROLE" ] || [ -z "$SNOWFLAKE_PRIVATE_KEY" ] || [ -z "$SNOWFLAKE_PRIVATE_KEY_PASSWORD" ]; then
     echo "Variables Snowflake manquantes dans le fichier .env !"
-    echo "Variables requises : SNOWFLAKE_USER, SNOWFLAKE_PASSWORD, SNOWFLAKE_ACCOUNT, SNOWFLAKE_WAREHOUSE, SNOWFLAKE_ROLE, SNOWFLAKE_PRIVATE_KEY"
+    echo "Variables requises : SNOWFLAKE_USER, SNOWFLAKE_PASSWORD, SNOWFLAKE_ACCOUNT, SNOWFLAKE_WAREHOUSE, SNOWFLAKE_ROLE, SNOWFLAKE_PRIVATE_KEY, SNOWFLAKE_PRIVATE_KEY_PASSWORD"
     exit 1
 fi
 
@@ -34,19 +35,26 @@ uv run airflow db migrate
 
 
 echo "Attente du démarrage d'Airflow..."
-sleep 10
+# sleep 10
 
 # 4. Créer la connexion Snowflake en utilisant les variables d'environnement
 echo "Création de la connexion Snowflake..."
 echo "   Utilisateur: $SNOWFLAKE_USER"
-echo "   Compte: $SNOWFLAKE_ACCOUNT" 
+echo "   Compte: $SNOWFLAKE_ACCOUNT"
 echo "   Warehouse: $SNOWFLAKE_WAREHOUSE"
 echo "   Rôle: $SNOWFLAKE_ROLE"
 
 uv run airflow connections add my_snowflake_conn \
-  --conn-type snowflake \
-  --conn-login "$SNOWFLAKE_USER" \
-  --conn-extra "{\"account\":\"$SNOWFLAKE_ACCOUNT\",\"warehouse\":\"$SNOWFLAKE_WAREHOUSE\",\"role\":\"$SNOWFLAKE_ROLE\",\"private_key_content\":\"$SNOWFLAKE_PRIVATE_KEY\"}"
+    --conn-type snowflake \
+    --conn-login "$SNOWFLAKE_USER" \
+    --conn-password "$SNOWFLAKE_PRIVATE_KEY_PASSWORD" \
+    --conn-extra "{\
+    \"account\":\"$SNOWFLAKE_ACCOUNT\",\
+    \"warehouse\":\"$SNOWFLAKE_WAREHOUSE\",\
+    \"role\":\"$SNOWFLAKE_ROLE\",\
+    \"authenticator\": \"SNOWFLAKE_JWT\",\
+    \"private_key_file\":\"$SNOWFLAKE_PRIVATE_KEY\"\
+    }"
 
 echo ""
 echo "Configuration terminée ! Lancement d'Airflow..."

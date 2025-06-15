@@ -1,10 +1,7 @@
-import snowflake.connector
 import os
-import logging
-import re
+
 import dotenv
-import csv
-import datetime
+import snowflake.connector
 
 dotenv.load_dotenv()
 
@@ -19,6 +16,7 @@ SNOWFLAKE_CONFIG = {
     "schema": "PUBLIC",
 }
 
+
 def connect_snowflake():
     return snowflake.connector.connect(**SNOWFLAKE_CONFIG)
 
@@ -27,13 +25,12 @@ def execute_query(cursor, query):
     try:
         cursor.execute(query)
         print(f"Exécuté : {query.strip()[:100]}")
-    except Exception as e:
-        print(
-            f"Erreur lors de l'exécution de la requête : {query.strip()[:100]}"
-        )
+    except Exception:
+        print(f"Erreur lors de l'exécution de la requête : {query.strip()[:100]}")
+
 
 def process_sql_script(cursor, script_path):
-    with open(script_path, "r") as f:
+    with open(script_path) as f:
         content = f.read()
 
     # Découper en requêtes individuelles
@@ -41,6 +38,7 @@ def process_sql_script(cursor, script_path):
 
     for stmt in statements:
         execute_query(cursor, stmt)
+
 
 def main():
     try:
@@ -51,7 +49,7 @@ def main():
         process_sql_script(cursor, file)
         print("Installation terminée sans erreur.")
 
-    except Exception as e:
+    except Exception:
         print("Erreur inattendue pendant le chargement")
     finally:
         try:
@@ -59,6 +57,7 @@ def main():
             conn.close()
         except:
             pass
+
 
 if __name__ == "__main__":
     main()

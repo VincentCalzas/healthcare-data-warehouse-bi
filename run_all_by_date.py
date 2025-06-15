@@ -1,9 +1,10 @@
-import subprocess
 import re
+import subprocess
 from pathlib import Path
 
 DATA_ROOT = Path("./Data Hospital")
 PATTERN = re.compile(r"BDD_HOSPITAL_(\d{8})")
+
 
 def get_dates():
     dates = []
@@ -12,6 +13,7 @@ def get_dates():
         if match:
             dates.append(match.group(1))
     return sorted(dates)
+
 
 def main():
     dates = get_dates()
@@ -24,7 +26,10 @@ def main():
 
         # Étape 2 : Chargement des données pour cette date uniquement
         print(f"-> Exécution de launch_load_sid.py pour {date}")
-        subprocess.run(["uv", "run", "python", "launch_load_sid.py", "--date", date], check=True)
+        subprocess.run(
+            ["uv", "run", "python", "launch_load_sid.py", "--date", date], check=True,
+        )
+
 
 if __name__ == "__main__":
     main()
