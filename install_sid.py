@@ -42,7 +42,6 @@ def connect_snowflake():
     """Établit une connexion à Snowflake."""
     return snowflake.connector.connect(**SNOWFLAKE_CONFIG)
 
-
 def execute_query(cursor, query):
     try:
         cursor.execute(query)
@@ -51,17 +50,6 @@ def execute_query(cursor, query):
         logger.exception(
             f"Erreur lors de l'exécution de la requête : {query.strip()[:100]}",
         )
-
-
-def database_exists(cursor, db_name):
-    cursor.execute(f"SHOW DATABASES LIKE '{db_name}'")
-    return cursor.fetchone() is not None
-
-
-def table_exists(cursor, db, schema, table):
-    cursor.execute(f"SHOW TABLES IN {db}.{schema} LIKE '{table}'")
-    return cursor.fetchone() is not None
-
 
 def process_sql_script(cursor, script_path):
     with open(script_path) as f:

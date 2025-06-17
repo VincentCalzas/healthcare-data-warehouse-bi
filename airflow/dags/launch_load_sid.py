@@ -35,85 +35,11 @@ EXPECTED_ENTITIES = set(ENTITY_COLUMN_COUNTS.keys())
 
 dotenv.load_dotenv()
 
-"""
 def load_files_to_snowflake(**context):
-    dag_run = context.get("dag_run")
-    date_str = (
-        dag_run.conf["date"]
-        if dag_run and dag_run.conf and "date" in dag_run.conf
-        else context["logical_date"].strftime("%Y%m%d")
-    )
-
-    if not date_str:
-        raise ValueError("La date doit être fournie dans conf.date au format YYYYMMDD")
-
-    folder_path = DATA_ROOT / f"{FOLDER_PATH_PREFIX}{date_str}"
-    if not folder_path.exists():
-        raise FileNotFoundError(f"Dossier {folder_path} introuvable.")
-
-    conn = snowflake.connector.connect(
-        user=os.getenv("SNOWFLAKE_USER"),
-        password=os.getenv("SNOWFLAKE_PASSWORD"),
-        authenticator="SNOWFLAKE_JWT",
-        private_key=os.getenv("SNOWFLAKE_PRIVATE_KEY_BASE64"),
-        account=os.getenv("SNOWFLAKE_ACCOUNT"),
-        warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
-        role=os.getenv("SNOWFLAKE_ROLE"),
-    )
-    cursor = conn.cursor()
-
-    for file_path in folder_path.glob("*.txt"):
-        match = FILE_PATTERN.search(file_path.stem)
-        if not match:
-            continue
-
-        entity, file_date = match.group(1), match.group(2)
-        if entity not in EXPECTED_ENTITIES or file_date != date_str:
-            continue
-
-        with open(file_path, newline="", encoding="utf-8") as f:
-            reader = csv.reader(f, delimiter=";")
-            all_rows = []
-            for i, row in enumerate(reader):
-                row = row[1:]  # Retire l’ID
-                if i == 0:
-                    continue  # skip header
-                if len(row) != ENTITY_COLUMN_COUNTS[entity]:
-                    continue
-                all_rows.append(row)
-
-        if not all_rows:
-            continue
-
-        columns = list(zip(*all_rows, strict=False))
-        param_list = []
-        for col in columns:
-            formatted = [
-                "NULL" if v in (None, "", "NULL") else f"'{str(v).replace("'", "''")}'"
-                for v in col
-            ]
-            param_list.append(f"ARRAY_CONSTRUCT({', '.join(formatted)})")
-
-        call_sql = f"CALL insert_{entity.lower()}({', '.join(param_list)})"
-        cursor.execute("USE DATABASE STG;")
-        cursor.execute("USE SCHEMA PUBLIC;")
-        cursor.execute(call_sql)
-
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-
-"""   
-
-
-def load_files_to_snowflake(**context):
-    # 1️⃣  Récupérer le connecteur Airflow
     hook = SnowflakeHook(snowflake_conn_id="my_snowflake_conn")
     conn = hook.get_conn()          # ⇒ objet connexion déjà authentifié
     cursor = conn.cursor()
 
-    # 2️⃣  Récupérer la date d’exécution
     dag_run = context.get("dag_run")
     date_str = (
         dag_run.conf.get("date") if dag_run and dag_run.conf else context["logical_date"].strftime("%Y%m%d")
@@ -123,7 +49,6 @@ def load_files_to_snowflake(**context):
     if not folder_path.exists():
         raise FileNotFoundError(f"Dossier {folder_path} introuvable.")
 
-    # 3️⃣  Parcourir les fichiers et insérer
     for file_path in folder_path.glob("*.txt"):
         match = FILE_PATTERN.search(file_path.stem)
         if not match:

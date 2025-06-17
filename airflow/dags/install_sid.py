@@ -7,7 +7,6 @@ default_args = {"owner": "airflow"}
 
 with DAG(
     dag_id="install_sid",
-    start_date=datetime.now() - timedelta(days=1),
     schedule="@once",  # Exécution manuelle uniquement
     catchup=False,
     default_args=default_args,
