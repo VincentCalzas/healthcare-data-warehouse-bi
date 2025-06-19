@@ -13,6 +13,8 @@ from airflow.providers.standard.operators.python import PythonOperator
 
 default_args = {
     "owner": "airflow",
+    "retries": 3,
+    "retry_delay": timedelta(minutes=3),
 }
 
 DATA_ROOT = Path("Data Hospital")  # à adapter si nécessaire
