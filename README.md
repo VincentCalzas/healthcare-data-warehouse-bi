@@ -12,8 +12,8 @@ Projet de gestion et d’analyse de données hospitalières avec Airflow et Snow
 - `Data Hospital/` : Données hospitalières brutes
 - `scripts/` : Scripts SQL et Python sans dag
 - `airflow/dags/` : DAGs Airflow pour l’orchestration
-- `model/` : Modèles de données
-- `reports/` : Rapports et analyses
+- `Model/` : Modèles de données
+- `Rapport/` : Rapports et analyses (Power BI)
 
 ## Installation
 
