@@ -4,7 +4,26 @@ import datetime
 import logging
 import os
 import re
+"""
+launch_load_sid.py
+
+Ce script charge les données hospitalières pour une date donnée dans Snowflake.
+Il traite les fichiers du dossier data_hospital, appelle les procédures d'insertion et exécute les scripts de transformation.
+
+Étapes principales :
+1. Connexion à Snowflake
+2. Chargement des fichiers pour la date
+3. Appel des procédures d'insertion
+4. Exécution des scripts de transformation
+5. Journalisation des opérations
+
+Auteur : Vincent
+"""
+
 from pathlib import Path
+
+import dotenv
+import snowflake.connector
 
 import dotenv
 import snowflake.connector

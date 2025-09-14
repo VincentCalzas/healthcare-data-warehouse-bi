@@ -1,7 +1,21 @@
+
+"""
+install_sid.py
+
+Ce script initialise la structure de la base de données Snowflake pour le projet Healthcare Data Warehouse BI.
+Il exécute les scripts SQL nécessaires à la création des bases et des schémas.
+
+Étapes principales :
+1. Connexion à Snowflake
+2. Exécution des scripts SQL de création
+3. Journalisation des opérations
+
+Auteur : Vincent
+"""
+
 import datetime
 import logging
 import os
-
 import dotenv
 import snowflake.connector
 
@@ -21,7 +35,7 @@ logging.basicConfig(
     ],
 )
 
-# Load environment variables from .env file
+# Chargement des variables d'environnement depuis .env
 dotenv.load_dotenv()
 
 # Configuration Snowflake à partir de .env
@@ -37,12 +51,16 @@ SNOWFLAKE_CONFIG = {
 
 SCRIPTS_DIR = "scripts"
 
-
 def connect_snowflake():
-    """Établit une connexion à Snowflake."""
+    """
+    Établit une connexion à Snowflake.
+    """
     return snowflake.connector.connect(**SNOWFLAKE_CONFIG)
 
 def execute_query(cursor, query):
+    """
+    Exécute une requête SQL et journalise l'opération.
+    """
     try:
         cursor.execute(query)
         logger.info(f"Exécuté : {query.strip()[:100]}")
@@ -52,6 +70,9 @@ def execute_query(cursor, query):
         )
 
 def process_sql_script(cursor, script_path):
+    """
+    Lit et exécute toutes les requêtes d'un fichier SQL.
+    """
     with open(script_path) as f:
         content = f.read()
 
@@ -61,8 +82,10 @@ def process_sql_script(cursor, script_path):
     for stmt in statements:
         execute_query(cursor, stmt)
 
-
 def main():
+    """
+    Fonction principale : initialise la base et exécute les scripts SQL.
+    """
     try:
         conn = connect_snowflake()
         cursor = conn.cursor()
@@ -88,7 +111,6 @@ def main():
             conn.close()
         except:
             pass
-
 
 if __name__ == "__main__":
     main()
